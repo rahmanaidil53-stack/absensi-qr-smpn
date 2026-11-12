@@ -1,94 +1,48 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pemindai QR Absensi</title>
+  <title>Pemindai QR Siswa</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 560px; margin: 24px auto; padding: 0 16px; color: #222; }
-    h2 { margin-bottom: 8px; }
-    #reader { width: 100%; margin-top: 18px; }
-    button { padding: 12px 16px; margin: 8px 8px 8px 0; cursor: pointer; }
-    #pesan { margin-top: 14px; padding: 12px; background: #f1f5f9; border-radius: 8px; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #f4f6f8;
+    }
+    #reader {
+      width: 100%;
+      max-width: 450px;
+      margin: 20px auto;
+      background: white;
+    }
+    #status {
+      font-weight: bold;
+      margin: 20px;
+    }
   </style>
 </head>
 <body>
-  <h2>📷 Pemindai QR Absensi Siswa</h2>
-  <p>Arahkan kamera ke kartu QR siswa. Setelah terbaca, kode akan dikirim kembali ke aplikasi absensi.</p>
-  <button id="mulai">Mulai Kamera</button>
-  <button id="berhenti" disabled>Hentikan Kamera</button>
+  <h2>📷 Pemindai QR Siswa</h2>
   <div id="reader"></div>
-  <div id="pesan">Siap. Tekan “Mulai Kamera”.</div>
+  <p id="status">Menyiapkan kamera...</p>
 
   <script>
-    let pemindai = null;
-    let sedangScan = false;
+    const pemindai = new Html5Qrcode("reader");
 
-    const parameter = new URLSearchParams(window.location.search);
-    const originAplikasi = parameter.get('parentOrigin');
-
-    function tampilkanPesan(teks) {
-      document.getElementById('pesan').textContent = teks;
-    }
-
-    async function hentikanKamera() {
-      if (pemindai && sedangScan) {
-        try {
-          await pemindai.stop();
-          sedangScan = false;
-        } catch (e) {
-          console.log(e);
-        }
+    pemindai.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      function(kodeQR) {
+        document.getElementById("status").textContent =
+          "QR berhasil dibaca: " + kodeQR;
       }
-      document.getElementById('mulai').disabled = false;
-      document.getElementById('berhenti').disabled = true;
-    }
-
-    document.getElementById('mulai').addEventListener('click', async function () {
-      if (typeof Html5Qrcode === 'undefined') {
-        tampilkanPesan('Pustaka pemindai QR gagal dimuat. Periksa koneksi internet.');
-        return;
-      }
-
-      try {
-        if (!pemindai) pemindai = new Html5Qrcode('reader');
-
-        await pemindai.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async function (kodeTerbaca) {
-            if (!kodeTerbaca || !sedangScan) return;
-
-            sedangScan = false;
-            await hentikanKamera();
-
-            if (!window.opener || window.opener.closed) {
-              tampilkanPesan('Aplikasi absensi tidak ditemukan. Tutup halaman ini dan buka pemindai dari aplikasi absensi.');
-              return;
-            }
-
-            window.opener.postMessage(
-              { type: 'QR_SCAN', kode: kodeTerbaca },
-              originAplikasi || '*'
-            );
-            tampilkanPesan('QR berhasil dibaca dan dikirim ke aplikasi. Tekan “Mulai Kamera” untuk memindai siswa berikutnya.');
-          },
-          function () {}
-        );
-
-        sedangScan = true;
-        document.getElementById('mulai').disabled = true;
-        document.getElementById('berhenti').disabled = false;
-        tampilkanPesan('Kamera aktif. Arahkan ke QR siswa.');
-      } catch (e) {
-        tampilkanPesan('Kamera gagal dibuka: ' + (e.message || e));
-      }
-    });
-
-    document.getElementById('berhenti').addEventListener('click', hentikanKamera);
-    window.addEventListener('beforeunload', function () {
-      if (pemindai && sedangScan) pemindai.stop().catch(function () {});
+    ).catch(function(error) {
+      document.getElementById("status").textContent =
+        "Kamera gagal dibuka: " + error;
     });
   </script>
 </body>
